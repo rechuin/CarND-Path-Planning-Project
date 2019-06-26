@@ -1,3 +1,5 @@
+
+
 #include <fstream>
 #include <math.h>
 #include <uWS/uWS.h>
@@ -18,7 +20,9 @@ using std::string;
 using std::vector;
 
 double ref_vel = 0.0; // mph
-double lane = 1;
+double lane = 1; // I suggest lane should be int not double
+const double MAX_VEL = 49.5;
+const double MAX_ACC = .224;
 
 int main() {
   uWS::Hub h;
@@ -57,7 +61,11 @@ int main() {
     map_waypoints_dy.push_back(d_y);
   }
 
-  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,
+
+  
+
+  h.onMessage([&MAX_VEL, &MAX_ACC, &ref_vel, &lane,
+               &map_waypoints_x,&map_waypoints_y,&map_waypoints_s,
                &map_waypoints_dx,&map_waypoints_dy]
               (uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                uWS::OpCode opCode) {
@@ -109,6 +117,8 @@ int main() {
             bool car_left = false;
             bool car_right = false;
             int car_lane = -1;
+            
+            //[Not important to initialize car_lane here. Only assign a value to car_lane after checking d value.Car_lane only take values 0, 1, 2]
 
           // Define car reference points
           double ref_x = car_x;
@@ -130,7 +140,9 @@ int main() {
               car_lane = 1;
             }
 
-            if (d>4 && d<8) // remote car is in lane 2
+            if (d>8 && d<12) // remote car is in lane 2
+            
+            //[for car to be in lane 2, d should be greater than 8 but less than 12]
             {
               car_lane = 2;
             }
@@ -140,13 +152,23 @@ int main() {
             double vy = sensor_fusion[i][4];
             double near_car_speed = sqrt(vx*vx + vy*vy);//magnitude calculation
             double near_car_s = sensor_fusion[i][5];
+            
+            // near_car_s needs to be updated e.g near_car_s += ((double)prev_size * .02 * near_car_speed);
+            
+            
             double roi_s = 28.0;
             double roi_offset = 15.0;
 
             // car go ahead
             if(car_lane == lane)
             {
-              if (near_car_s > car_s && near_car_s-car_s > roi_s)
+              if (near_car_s > car_s && near_car_s-car_s < roi_s)
+              
+               
+              //it should be "near_car_s-car_s < roi_s" and not "near_car_s-car_s > roi_s"
+              // because if so then near car is pretty far away and we apparently don't consider that there's a car infront.
+              // It's also important that we consider the speed(mph) of our near_car in this logic.Even if "near_car_s-car_s < roi_s" is true but "near_car_speed*2.24 > ref_vel",
+              // we shouldn't consider there's a car ahead as it's moving faster than our ego car and w
               {
                 car_ahead = true;
               }
@@ -156,7 +178,9 @@ int main() {
 
 
             // car go right
-            if (car_lane - lane >= 1 )
+            if (car_lane - lane > 1 )
+            
+            //[not good logic for me because this will be true for lane 1 and lane 2 but "if(car_lane == lane)" will be true for lane 1. So "if (car_lane - lane == 2 )" is preferable ]
             {
               if (car_s > near_car_s && abs(car_s - near_car_s) >= roi_offset)
               {
@@ -191,10 +215,13 @@ int main() {
           }
 
           // Behavior planner.
-          int too_close = -1;
-          double vel_diff = 0.0;
-          const double MAX_VEL = 49.5;
-          const double MAX_ACC = .224;
+          int too_close = -1;   // I think too_close should be a flag( boolean) and int 
+          
+          
+          
+          double vel_diff = 0.0;  // this variable looks obsolete to me as I can't see it's use.
+          //const double MAX_VEL = 49.5;
+          //const double MAX_ACC = .224;
 
           if(car_ahead == true)
           {
@@ -252,8 +279,8 @@ int main() {
 
             ptsx.push_back(prev_car_x);
             ptsx.push_back(car_x);
-            ptsy.push_back(prev_car_x);
-            ptsy.push_back(car_x);
+            ptsy.push_back(prev_car_y); // ptsy.push_back(prev_car_y);
+            ptsy.push_back(car_y);  //ptsy.push_back(car_y);
           }
 
           else
@@ -267,10 +294,10 @@ int main() {
 
             ref_yaw = atan2(prev_ref_y - ref_y, prev_ref_x - ref_x);
 
-            ptsx.push_back(ref_x);
-            ptsx.push_back(prev_ref_x);
-            ptsy.push_back(ref_y);
-            ptsy.push_back(prev_ref_y);
+            ptsx.push_back(prev_ref_x);                    //   ptsx.push_back(prev_ref_x);
+            ptsx.push_back(ref_x);              //  ptsx.push_back(ref_x);
+            ptsy.push_back(prev_ref_y);                  //ptsy.push_back(prev_ref_y);
+            ptsy.push_back(ref_y);             //ptsy.push_back(ref_y);
             
           }
 
@@ -299,7 +326,7 @@ int main() {
             ptsy.push_back(next_w2[1]);
 
           // shift data -> shift the beginning points of path at the (0,0) and the car reference angle to 0 as well 
-          //instead of map coodinates with angles 
+          // instead of map coodinates with angles 
           for (int i = 0; i < ptsx.size(); i ++)
           {
             double shift_x = ptsx[i] - ref_x;
@@ -307,7 +334,10 @@ int main() {
             
             // transfer the coordinate
             ptsx[i] = (shift_x*cos(0 - ref_yaw) - shift_y*sin(0 - ref_yaw));
-            ptsy[i] = (shift_x*sin(0 - ref_yaw) - shift_y*cos(0 - ref_yaw));
+            ptsy[i] = (shift_x*sin(0 - ref_yaw) + shift_y*cos(0 - ref_yaw));
+            
+            
+            // ptsy should be ptsy[i] = (shift_x*sin(0 - ref_yaw) + shift_y*cos(0 - ref_yaw)); and not  ptsy[i] = (shift_x*sin(0 - ref_yaw) - shift_y*cos(0 - ref_yaw));
 
           }
 
@@ -351,8 +381,8 @@ int main() {
             x_point = (x_ref*cos(ref_yaw) - y_ref*sin(ref_yaw));
             y_point = (x_ref*sin(ref_yaw) - y_ref*cos(ref_yaw));
 
-            x_point += x_ref;
-            y_point += y_ref;
+            x_point += ref_x;    // x_point += ref_x;
+            y_point += ref_y;    //y_point += ref_y; 
 
             next_x_vals.push_back(x_point);
             next_y_vals.push_back(y_point);
