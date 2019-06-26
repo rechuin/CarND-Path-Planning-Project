@@ -287,10 +287,10 @@ int main() {
           {
             // using the previous path's end point as starting reference
             ref_x = previous_path_x[prev_size-1];
-            ref_y = previous_path_x[prev_size-1];
+            ref_y = previous_path_y[prev_size-1];
 
             double prev_ref_x = previous_path_x[prev_size-2];
-            double prev_ref_y = previous_path_x[prev_size-2];
+            double prev_ref_y = previous_path_y[prev_size-2];
 
             ref_yaw = atan2(prev_ref_y - ref_y, prev_ref_x - ref_x);
 
