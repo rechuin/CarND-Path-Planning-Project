@@ -1,5 +1,3 @@
-
-
 #include <fstream>
 #include <math.h>
 #include <uWS/uWS.h>
@@ -19,10 +17,10 @@ using nlohmann::json;
 using std::string;
 using std::vector;
 
-double ref_vel = 0.0; // mph
-double lane = 1; // I suggest lane should be int not double
-const double MAX_VEL = 49.5;
-const double MAX_ACC = .224;
+//double ref_vel = 0.0; // mph
+//double lane = 1; // I suggest lane should be int not double
+//const double MAX_VEL = 49.5;
+//const double MAX_ACC = .224;
 
 int main() {
   uWS::Hub h;
@@ -61,6 +59,10 @@ int main() {
     map_waypoints_dy.push_back(d_y);
   }
 
+double ref_vel = 0.0; // mph
+double lane = 1; // I suggest lane should be int not double
+const double MAX_VEL = 49.5;
+const double MAX_ACC = .224;
 
   
 
@@ -107,7 +109,7 @@ int main() {
 
 
           //Define vector template parameters for calculating
-          	vector<double> ptsx;
+            vector<double> ptsx;
             vector<double> ptsy;
             vector<double> next_x_vals;
             vector<double> next_y_vals;
@@ -116,7 +118,8 @@ int main() {
             bool car_ahead = false;
             bool car_left = false;
             bool car_right = false;
-            int car_lane = -1;
+            //int car_lane = -1;
+            int car_lane;
             
             //[Not important to initialize car_lane here. Only assign a value to car_lane after checking d value.Car_lane only take values 0, 1, 2]
 
@@ -154,15 +157,24 @@ int main() {
             double near_car_s = sensor_fusion[i][5];
             
             // near_car_s needs to be updated e.g near_car_s += ((double)prev_size * .02 * near_car_speed);
+            near_car_s += ((double)prev_size * .02 * near_car_speed);
             
-            
-            double roi_s = 28.0;
-            double roi_offset = 15.0;
+            double roi_s = 35.0;
+            double roi_offset = 20.0;
+
+
 
             // car go ahead
             if(car_lane == lane)
             {
-              if (near_car_s > car_s && near_car_s-car_s < roi_s)
+
+             if ((near_car_s-car_s < roi_s) && (ref_vel > near_car_speed*2.24))
+             {
+               car_ahead = true;
+             }
+
+             else{ car_ahead = false; }
+             /*if ( near_car_s-car_s < roi_s && ref_vel > near_car_speed*2.24 )
               
                
               //it should be "near_car_s-car_s < roi_s" and not "near_car_s-car_s > roi_s"
@@ -171,51 +183,64 @@ int main() {
               // we shouldn't consider there's a car ahead as it's moving faster than our ego car and w
               {
                 car_ahead = true;
+                cout<<"lane is: "<< lane <<endl;
               }
 
-              else { car_ahead = false; }
+              else { car_ahead = false; }*/
+
+
+
             }
 
 
             // car go right
-            if (car_lane - lane > 1 )
+            //if (car_lane - lane > 1 )
+            else if (car_lane == lane+1 )
             
             //[not good logic for me because this will be true for lane 1 and lane 2 but "if(car_lane == lane)" will be true for lane 1. So "if (car_lane - lane == 2 )" is preferable ]
             {
-              if (car_s > near_car_s && abs(car_s - near_car_s) >= roi_offset)
+              if (car_s > near_car_s && abs(car_s - near_car_s) <= roi_offset)
+             
               {
                 car_right = true;
               }
 
-              if (car_s < near_car_s && abs(car_s - near_car_s) >= roi_offset)
+              else if (car_s < near_car_s && abs(car_s - near_car_s) <= roi_offset)
               {
                 car_right = true;
               }
-              else{ car_right = false;}            
+              else{ car_right = false;}     
+
+
+              
+
             }
 
 
             // car go left
-            else
+            else if(car_lane == lane-1)
             {
-              if (car_s > near_car_s && abs(car_s - near_car_s) >= roi_offset)
+              if (car_s > near_car_s && abs(car_s - near_car_s) <= roi_offset)
               {
                 car_left = true;
               }
 
-              if (car_s < near_car_s && abs(car_s - near_car_s) >= roi_offset)
+              if (car_s < near_car_s && abs(car_s - near_car_s) <= roi_offset)
               {
                 car_left = true;
               }
 
               else{ car_left = false; }
+
+
+
             }
             
 
           }
 
           // Behavior planner.
-          int too_close = -1;   // I think too_close should be a flag( boolean) and int 
+          //int too_close = -1;   // I think too_close should be a flag( boolean) and int 
           
           
           
@@ -223,47 +248,84 @@ int main() {
           //const double MAX_VEL = 49.5;
           //const double MAX_ACC = .224;
 
-          if(car_ahead == true)
+          //if(car_ahead == true)
+          if (car_ahead)
           {
-            if (car_left == true && lane > 0) // change lane to left
+            //if (car_left == true && lane > 0) // change lane to left
+            /*if (!car_left && (lane==1 || lane ==2))
             {
               lane = lane -1;
-              too_close = 0;
+              //too_close = 0;
             }
 
-            if (car_right == true && lane < 2) // change lane to right
+            //if (car_right == true && lane < 2) // change lane to right
+            else if(!car_right && lane==0 || lane==1)
             {
               lane = lane + 1;
-              too_close = 0;
+              //too_close = 0;
             }
 
             else
             {
-              lane = 1;
-              too_close = 0;
-            }
+              ref_vel -= MAX_ACC;
+            }*/
+
+            
+
+            if ( !car_left && lane > 0 ) 
+              {
+                // if there is no car left and ego vehicle is not in the lane 0.
+                lane = lane -1 ; // Change lane left.
+              } 
+              else if ( !car_right && lane != 2 )
+              {
+                // if there is no car in right and ego vehicle is not in the lane 2.
+                lane = lane + 1; // Change lane to right.
+              } 
+              else 
+              {
+                vel_diff = -MAX_ACC;
+              }
+
+
           }
 
-          else
-          {
-            too_close = 1;
-          }
-          
-
-          // motion planning
-          if (too_close == 1)
-          {
-            ref_vel -= MAX_ACC;
-          }
-          if(ref_vel <= MAX_VEL)
+          /*/else if(ref_vel<MAX_VEL)
           {
             ref_vel += MAX_ACC;
-          }
+          }*/
 
-          else if(ref_vel > MAX_VEL)
-          {
-            ref_vel = MAX_VEL - 0.1;
-          }
+          else 
+             {
+              if ( lane != 1 ) 
+              { // if ego vehicle are not on the center lane.
+                if ( ( lane == 0 && !car_right ) || ( lane == 2 && !car_left ) ) 
+                {
+                  lane = 1; // Reset back to center lane. It can help vehile do more optimal dedisions. If it is setted as
+                  //not back to center lane, then vehicle changes to one side only even it could go faster.
+                }
+              }
+              if ( ref_vel < MAX_VEL ) 
+              {
+                vel_diff = MAX_ACC;
+              }
+            }
+          
+
+//          // motion planning
+//          if (too_close == 1)
+//          {
+//            ref_vel -= MAX_ACC;
+//          }
+//          if(ref_vel <= MAX_VEL)
+//          {
+//            ref_vel += MAX_ACC;
+//          }
+
+//          else if(ref_vel > MAX_VEL)
+//          {
+//            ref_vel = MAX_VEL - 0.1;
+//          }
 
 
 
@@ -292,7 +354,8 @@ int main() {
             double prev_ref_x = previous_path_x[prev_size-2];
             double prev_ref_y = previous_path_y[prev_size-2];
 
-            ref_yaw = atan2(prev_ref_y - ref_y, prev_ref_x - ref_x);
+            //ref_yaw = atan2(prev_ref_y - ref_y, prev_ref_x - ref_x);
+            ref_yaw = atan2(ref_y - prev_ref_y, ref_x - prev_ref_x);
 
             ptsx.push_back(prev_ref_x);                    //   ptsx.push_back(prev_ref_x);
             ptsx.push_back(ref_x);              //  ptsx.push_back(ref_x);
@@ -362,11 +425,23 @@ int main() {
           double x_add_on = 0;
           // fill up the rest of our path planner after filling it with previous points
           // here we will always output 50 points
-          for (int i = 0; i <= 50 - previous_path_x.size(); i++)
+          for (int i = 1; i <= 50 - previous_path_x.size(); i++)
           {
 
+            /* vehicle motion control */
+            ref_vel += vel_diff;
 
-            double N = (target_dist/(0.02*ref_vel)/2.24); // dividing 2.24 because unity changing in miles/hour
+              if ( ref_vel >= MAX_VEL ) 
+              {
+                ref_vel = MAX_VEL - 0.1;//Add a constant for speed down or noise.
+              } 
+              else if ( ref_vel <= MAX_ACC ) // if ref_velocity is smaller than MAX_ACC then, Just speed up with the large
+              //acceleration value. This is the cold start step.
+              {
+                ref_vel += MAX_ACC;
+              }
+
+            double N = (target_dist/(0.02*ref_vel/2.24)); // dividing 2.24 because unity changing in miles/hour
             double x_point;
             double y_point;
 
@@ -379,8 +454,8 @@ int main() {
             double y_ref = y_point;
 
             x_point = (x_ref*cos(ref_yaw) - y_ref*sin(ref_yaw));
-            y_point = (x_ref*sin(ref_yaw) - y_ref*cos(ref_yaw));
-
+            //y_point = (x_ref*sin(ref_yaw) - y_ref*cos(ref_yaw));
+            y_point = (x_ref*sin(ref_yaw) + y_ref*cos(ref_yaw));
             x_point += ref_x;    // x_point += ref_x;
             y_point += ref_y;    //y_point += ref_y; 
 
