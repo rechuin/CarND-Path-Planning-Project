@@ -159,8 +159,8 @@ const double MAX_ACC = .224;
             // near_car_s needs to be updated e.g near_car_s += ((double)prev_size * .02 * near_car_speed);
             near_car_s += ((double)prev_size * .02 * near_car_speed);
             
-            double roi_s = 35.0;
-            double roi_offset = 20.0;
+            double roi_s = 28.0;
+            double roi_offset = 15.0;
 
 
 
@@ -173,7 +173,10 @@ const double MAX_ACC = .224;
                car_ahead = true;
              }
 
-             else{ car_ahead = false; }
+            else
+			{
+				car_ahead = false; 
+			}
              /*if ( near_car_s-car_s < roi_s && ref_vel > near_car_speed*2.24 )
               
                
@@ -185,7 +188,6 @@ const double MAX_ACC = .224;
                 car_ahead = true;
                 cout<<"lane is: "<< lane <<endl;
               }
-
               else { car_ahead = false; }*/
 
 
@@ -199,17 +201,18 @@ const double MAX_ACC = .224;
             
             //[not good logic for me because this will be true for lane 1 and lane 2 but "if(car_lane == lane)" will be true for lane 1. So "if (car_lane - lane == 2 )" is preferable ]
             {
-              if (car_s > near_car_s && abs(car_s - near_car_s) <= roi_offset)
+              if ((car_s > near_car_s) && (abs(car_s - near_car_s) <= roi_offset))
              
               {
                 car_right = true;
               }
 
-              else if (car_s < near_car_s && abs(car_s - near_car_s) <= roi_offset)
+              else if ((car_s < near_car_s) && (abs(car_s - near_car_s) <= roi_offset))
               {
                 car_right = true;
               }
-              else{ car_right = false;}     
+              else
+			  { car_right = false;}     
 
 
               
@@ -220,12 +223,12 @@ const double MAX_ACC = .224;
             // car go left
             else if(car_lane == lane-1)
             {
-              if (car_s > near_car_s && abs(car_s - near_car_s) <= roi_offset)
+              if ((car_s > near_car_s) && (abs(car_s - near_car_s) <= roi_offset))
               {
                 car_left = true;
               }
 
-              if (car_s < near_car_s && abs(car_s - near_car_s) <= roi_offset)
+              if ((car_s < near_car_s) && (abs(car_s - near_car_s) <= roi_offset))
               {
                 car_left = true;
               }
@@ -257,35 +260,42 @@ const double MAX_ACC = .224;
               lane = lane -1;
               //too_close = 0;
             }
-
             //if (car_right == true && lane < 2) // change lane to right
             else if(!car_right && lane==0 || lane==1)
             {
               lane = lane + 1;
               //too_close = 0;
             }
-
             else
             {
               ref_vel -= MAX_ACC;
             }*/
-
+			std::cout << "car_ahead active" << std::endl;
             
 
-            if ( !car_left && lane > 0 ) 
-              {
+            if ( !car_left && !car_right && (lane > 0) ) 
+            {
                 // if there is no car left and ego vehicle is not in the lane 0.
                 lane = lane -1 ; // Change lane left.
-              } 
-              else if ( !car_right && lane != 2 )
-              {
+				std::cout << "Change lane left" << std::endl;
+            } 
+			else if ( !car_left && (car_right = true) && (lane > 0) )
+			{
+				// if there is no car left and ego vehicle is not in the lane 0.
+                lane = lane -1 ; // Change lane left.
+				std::cout << "Change lane left" << std::endl;
+			}
+            else if ( !car_right && (car_left = true) && (lane != 2) )
+            {
                 // if there is no car in right and ego vehicle is not in the lane 2.
                 lane = lane + 1; // Change lane to right.
-              } 
-              else 
-              {
+				std::cout << "Change lane right" << std::endl;
+			} 
+            else 
+            {
                 vel_diff = -MAX_ACC;
-              }
+				std::cout << "deceleration" << std::endl;
+            }
 
 
           }
